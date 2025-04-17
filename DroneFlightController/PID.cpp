@@ -19,9 +19,9 @@ void PID_Solver::Tick()
 	//Implement this in arduino IDE
 }
 
-static float PID_Solver::GetPIDValue(FResult InValue)
+static float PID_Solver::GetPIDValue(FResult* InValue)
 {
-	return InValue.Proportional + InValue.Integral + InValue.Derivative;
+	return InValue->Proportional + InValue->Integral + InValue->Derivative;
 }
 
 void PID_Solver::Solve()

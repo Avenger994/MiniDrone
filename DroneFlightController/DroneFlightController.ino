@@ -5,7 +5,12 @@
 #include <Wire.h>
 #include <SPI.h>
 
+//Config
+#define WRITE_TO_MOTOR_ENABLED    //write to motors if enabled
+#define TRACE_ENABLED             //Enables time recorded for each section placed
+
 #include "PID.h"
+#include "Trace.h"
 
 #define ESC_PIN1 2
 #define ESC_PIN2 3
@@ -50,7 +55,7 @@ float DeltaTime= 0;
 const float Frequncy = 16.00f;
 
 //Motors
-float M1, M2, M3, M4;
+unsigned int M1, M2, M3, M4;
 
 //Remote Data
 struct FRFData
@@ -59,6 +64,7 @@ struct FRFData
   int Yaw;
   int Pitch;
   int Roll;
+  bool bIsArmed;
 } RFData;
 
 Madgwick Filter;
@@ -67,6 +73,7 @@ void InitRadio()
 {
   Radio.begin();
   Radio.openReadingPipe(0, Address);
+  Radio.setDataRate(RF24_250KBPS);
   Radio.setPALevel(RF24_PA_MAX);
   Radio.startListening();
   
@@ -85,11 +92,15 @@ void InitMtrDriver()
 
 void InitIMU()
 {
+  START_TRACE(WireCommunication)
+  
   Wire.begin();                      // Initialize comunication
   Wire.beginTransmission(MPU);       // Start communication with MPU6050 // MPU=0x68
   Wire.write(0x6B);                  // Talk to the register 6B
   Wire.write(0x00);                  // Make reset - place a 0 into the 6B register
   Wire.endTransmission(true); 
+
+  END_TRACE(WireCommunication)
   
   delay(200);
 }
@@ -167,14 +178,14 @@ void setup() {
 void loop() {
 
   //TODO:
-  //-ShutDown Control Signals for Motors based on Armed Booloen
-  //-Get IMU Raw data
-  //-Filter the IMU Raw Values
-  //-Check for Radio Transsmision
-  //-Calculate Target Rotations
-  //-Set PID Target Rotation
-  //-Calculate Drone Control Signals Using PID
-  //-Send Control Signal to drones Moters
+  //-ShutDown Control Signals for Motors based on Armed Booloen   COMPLETED
+  //-Get IMU Raw data                                             COMPLETED
+  //-Filter the IMU Raw Values                                    COMPLETED
+  //-Check for Radio Transsmision                                 COMPLETED
+  //-Calculate Target Rotations                                   COMPLETED
+  //-Set PID Target Rotation                                      COMPLETED
+  //-Calculate Drone Control Signals Using PID                    COMPLETED
+  //-Send Control Signal to drones Moters                         COMPLETED
 
   PreviousTime = CurrentTime;
   CurrentTime = millis();
@@ -206,5 +217,48 @@ void loop() {
   YawPID.Solve();
 
   //Calculate values for the motors and write to the motor Drivers
+  //Add Throttle
+  M1 += (int)RFData.Throttle;
+  M2 += (int)RFData.Throttle;
+  M3 += (int)RFData.Throttle;
+  M4 += (int)RFData.Throttle;
   
+  //Calculate for Roll
+  M1 += PID_Solver::GetPIDValue(RollPID.GetResult());
+  M3 += PID_Solver::GetPIDValue(RollPID.GetResult());
+
+  M2 -= PID_Solver::GetPIDValue(RollPID.GetResult());
+  M4 -= PID_Solver::GetPIDValue(RollPID.GetResult());
+
+  //Calulate for Pitch
+  M1 += PID_Solver::GetPIDValue(PitchPID.GetResult());
+  M2 += PID_Solver::GetPIDValue(PitchPID.GetResult());
+
+  M3 -= PID_Solver::GetPIDValue(PitchPID.GetResult());
+  M4 -= PID_Solver::GetPIDValue(PitchPID.GetResult());
+
+  //Calculate for Yaw
+  M1 += PID_Solver::GetPIDValue(YawPID.GetResult());
+  M4 += PID_Solver::GetPIDValue(YawPID.GetResult());
+
+  M2 -= PID_Solver::GetPIDValue(YawPID.GetResult());
+  M3 -= PID_Solver::GetPIDValue(YawPID.GetResult());
+
+#ifdef WRITE_TO_MOTOR_ENABLED
+  //Writing the calculated values back to Drivers
+  if(!RFData.bIsArmed)
+  {
+    mtr1.write(M1);
+    mtr2.write(M2);
+    mtr3.write(M3);
+    mtr4.write(M4);  
+
+    M1 = 0;
+    M2 = 0;
+    M3 = 0;
+    M4 = 0;
+  }
+
+#endif
+
 }

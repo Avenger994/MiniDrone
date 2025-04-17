@@ -1,6 +1,6 @@
 
-#ifndef PID_H
-#define PID_H
+#ifndef _PID_H_
+#define _PID_H_
 
 struct FConstant
 {
@@ -25,7 +25,7 @@ public:
 
 	void Tick();
 
-  static float GetPIDValue(FResult InValue);
+  static float GetPIDValue(FResult* InValue);
 
 private:
 
@@ -54,7 +54,7 @@ public:
 	inline float GetCurrentValue() const {return m_CurrentValue;}
 	inline void SetCurrentValue(float NewValue) {m_CurrentValue = NewValue;}
 
-	inline int getControlSignal() const { return m_ControlSignal; }
+	inline int GetControlSignal() const { return m_ControlSignal; }
 	void SetControlSignal(int Invalue) { m_ControlSignal = Invalue; }
 
 	inline FResult* GetResult() { return &m_ResultValues; }
